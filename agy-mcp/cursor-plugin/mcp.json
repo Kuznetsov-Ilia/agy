@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "agy": {
+      "command": "bash",
+      "args": ["../bin/run-server.sh"],
+      "timeout": 600000
+    }
+  }
+}

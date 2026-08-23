@@ -1,0 +1,28 @@
+{
+  "name": "agy-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Thin stdio MCP server wrapping the agy (Antigravity) CLI — typed tools, model failover, compact output.",
+  "bin": {
+    "agy-mcp": "dist/server.js",
+    "agy-mcp-cli": "dist/cli.js",
+    "agy-pool": "dist/pool-cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "test": "vitest run",
+    "cli": "node dist/cli.js",
+    "install:cursor": "node bin/install.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8",
+    "@types/node": "^25.9.3"
+  }
+}

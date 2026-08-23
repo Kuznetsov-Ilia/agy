@@ -1,0 +1,6 @@
+{
+  "name": "agy-mcp",
+  "description": "Typed agy (Antigravity) MCP tools — analyze_files, deep_search, delegate, failover, compact output.",
+  "version": "0.1.0",
+  "author": { "name": "Ilia Kuznetsov" }
+}

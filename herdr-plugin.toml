@@ -1,0 +1,39 @@
+id = "agy.delegate"
+name = "Agy"
+version = "0.1.0"
+min_herdr_version = "0.8.0"
+description = "Warm agy worker pool for Herdr + Cursor MCP delegation."
+platforms = ["macos", "linux"]
+
+[[build]]
+command = ["go", "build", "-o", "bin/agy-pool", "./cmd/agy-pool"]
+
+[[build]]
+command = ["bash", "-lc", "cd agy-mcp && pnpm install && pnpm build"]
+
+[[startup]]
+command = ["./bin/agy-pool", "ensure"]
+
+[[actions]]
+id = "ensure"
+title = "Ensure agy pool"
+command = ["./bin/agy-pool", "ensure"]
+
+[[actions]]
+id = "status"
+title = "Agy pool status"
+command = ["./bin/agy-pool", "status"]
+
+[[actions]]
+id = "reconcile"
+title = "Reconcile agy pool"
+command = ["./bin/agy-pool", "reconcile"]
+
+[[actions]]
+id = "cursor-install"
+title = "Install Cursor agy MCP"
+command = ["./bin/agy-pool", "cursor-install"]
+
+[[events]]
+on = "pane.agent_status_changed"
+command = ["./bin/agy-pool", "reconcile"]

@@ -1,0 +1,5 @@
+bin/agy-pool
+agy-mcp/node_modules/
+agy-mcp/dist/
+.DS_Store
+*.test

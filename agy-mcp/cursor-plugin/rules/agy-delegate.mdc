@@ -1,0 +1,70 @@
+---
+description: Route mechanical/research/draft work through the agy MCP server (CallMcpTool, server=agy) instead of Shell agy wrappers or Task generalPurpose for discovery.
+alwaysApply: true
+---
+
+# agy — MCP delegation (global)
+
+Cursor orchestrator stays in charge. `agy-mcp` is a thin stdio MCP server
+(server id **`agy`**) wrapping the `agy` (Antigravity) CLI.
+Flash High/Medium/Low is Gemini 3.7 Flash (drone). Chains live in agy-mcp `MODEL_SLUG`.
+
+## Mandatory order: GetMcpTools → smoke → CallMcpTool
+
+```
+GetMcpTools({ server: "agy" })
+CallMcpTool({ server: "agy", toolName: "agy_doctor", arguments: {} })
+CallMcpTool({ server: "agy", toolName: "analyze_files", arguments: { prompt: "…", add_dir: "…" } })
+```
+
+`serverStatus: "ready"` alone is false-ready — always smoke `agy_doctor` first.
+
+## Which tool for which shape
+
+| Tool | Use for | Model chain |
+|---|---|---|
+| `analyze_files` | >3 files / logs / dumps | Flash High → Pro Low |
+| `deep_search` | repo grep / git archaeology | Flash Medium → Flash High |
+| `adversarial_review` | plan/code critique (non-secret) | Pro High → Sonnet Thinking |
+| `follow_up` | continue via `session_id` | inherits |
+| `delegate` | other heavy text (draft only) | Flash High |
+| `agy_doctor` | auth / binary / model-cache | — (no LLM) |
+| `agy_quota` | sanitized remaining/reset (agy-hud) | — (no LLM) |
+
+Pass **paths** via `add_dir`, never paste file bodies into `prompt`. Output is
+capped (~12KB) with a `[model: … | session: … | failover: N]` footer.
+
+## Conveyor discipline
+
+1. **One heavy agy call per turn** — no parallel `deep_search` + mega-Grep/Read.
+2. **Narrow `add_dir`** — worktree or one repo, never the whole home directory or multi-repo trees.
+3. **Tight prompt** — one question + expected output shape (paths). Prefer `follow_up`.
+4. **One heavy investigation** across parallel Agent chats at a time.
+5. Print defaults: `AGY_PRINT_TIMEOUT=300s`, wall `AGY_TIMEOUT_MS=360000`. Fat prompts
+   still timeout — scope first.
+
+## Iron rules
+
+1. **Asymmetry** — agy reads a lot via `add_dir`; you get ≤12KB back. Pass paths.
+2. **Isolation** — multi-file search goes through `analyze_files` / `deep_search`, not a Grep fan-out of 20+ files, and not `Task(generalPurpose)` for discovery.
+3. **Drafts only** — you still verify (read code + run the matching check).
+4. **`ON_FAILURE=strict`** — refused / quota / unauthenticated / print-timeout / empty →
+   stop, show the MCP text, ask the user. **Do not** silently absorb via Grep/Read/Task.
+5. **`Not connected`** → CLI: `node <agy-mcp>/dist/cli.js <tool> '<json>'` or prefer a new Agent chat.
+
+## Refuse (generic defaults)
+
+Do not send to `agy` (server hard-refuses) and do not use discovery Task for:
+
+- private keys / PEM secret material
+- prod deploy / destroy / wipe style prompts
+
+Projects may add extras via env `AGY_MCP_REFUSE_EXTRA` (comma/newline regex list).
+Crypto/PHI/auth/prod-migrate work that a project cares about should stay **inline**
+(or be listed in that env / a project overlay rule).
+
+## Banned
+
+- `Task(generalPurpose)` for discovery/research — use `analyze_files` / `deep_search`
+- Shell wrappers that bypass this MCP's safety + failover
+- Silent Cursor fallback after agy fail/timeout (burns Cursor quota while agy sits idle)
