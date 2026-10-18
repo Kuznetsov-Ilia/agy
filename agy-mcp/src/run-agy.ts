@@ -1,18 +1,11 @@
 // Shared runner: tries each model in a chain, kills the child on timeout,
 // serializes concurrent agy spawns (Keychain/file token contention), and
 // retries transient auth failures before failover.
-// Optional second transport: Herdr warm pool (parallel, no spawn mutex).
+// Herdr PTY lease transport (`AGY_TRANSPORT=herdr`, `/tmp/agy-pool`) is retired.
+// Superlab owns the warm pool: `src/agy-pool` UDS daemon.
 import { spawn } from "node:child_process";
-import { readFileSync, existsSync } from "node:fs";
 import { agyChildEnv } from "./agy-env.js";
 import { redact } from "./safety.js";
-import {
-  cleanupResultFile,
-  herdrAvailable,
-  leaseWorker,
-  promptWorker,
-  releaseWorker,
-} from "./herdr-pool.js";
 
 // Read lazily (not at module-eval time) so tests can swap AGY_BIN per case.
 export function agyBin(): string {
@@ -132,149 +125,18 @@ function provenanceFooter(opts: {
   return `\n\n[${bits.join(" | ")}]`;
 }
 
-/** AGY_TRANSPORT=auto|print|herdr — auto tries pool then print. */
+/** AGY_TRANSPORT is obsolete. Print is the only path in this package. */
 export function resolveTransport(
-  env: NodeJS.ProcessEnv = process.env,
-): "auto" | "print" | "herdr" {
-  const v = (env.AGY_TRANSPORT ?? "auto").trim().toLowerCase();
-  if (v === "print" || v === "herdr" || v === "auto") return v;
-  return "auto";
+  _env: NodeJS.ProcessEnv = process.env,
+): "print" {
+  return "print";
 }
 
-function resultContract(resultPath: string): string {
-  return (
-    `\n\nRESULT CONTRACT (mandatory): Write your COMPLETE answer as Markdown to this ` +
-    `exact file path, then reply ONLY with that path (no other text):\n${resultPath}`
-  );
-}
-
-function readResultFile(path: string): string | null {
-  if (!existsSync(path)) return null;
-  try {
-    const text = readFileSync(path, "utf8").trim();
-    return text.length > 0 ? text : null;
-  } catch {
-    return null;
-  }
-}
-
-async function runViaHerdrPool(opts: {
-  prompt: string;
-  model: string;
-  maxBytes: number;
-  timeoutMs: number;
-  raw?: boolean;
-}): Promise<RunAgyResult | null> {
-  if (!herdrAvailable()) return null;
-  const lease = await leaseWorker({
-    waitMs: Number(process.env.AGY_POOL_LEASE_MS ?? 3_000),
-  });
-  if (!lease) return null;
-
-  let prompt = opts.prompt;
-  if (!opts.raw) prompt += OUTPUT_CONTRACT;
-  prompt += resultContract(lease.resultPath);
-  cleanupResultFile(lease.resultPath);
-
-  try {
-    const prompted = await promptWorker(lease.worker, prompt, {
-      timeoutMs: opts.timeoutMs,
-    });
-    if (!prompted.ok) {
-      return {
-        ok: false,
-        output: "",
-        attempts: [
-          {
-            model: opts.model,
-            error: redact(`herdr-pool ${lease.worker}: ${prompted.error ?? "failed"}`),
-          },
-        ],
-        fellBackToInline: true,
-      };
-    }
-
-    const body = readResultFile(lease.resultPath);
-    if (!body) {
-      return {
-        ok: false,
-        output: "",
-        attempts: [
-          {
-            model: opts.model,
-            error: redact(
-              `herdr-pool ${lease.worker}: result file missing/empty (${lease.resultPath})`,
-            ),
-          },
-        ],
-        fellBackToInline: true,
-      };
-    }
-
-    const { text, truncated } = truncate(body, opts.maxBytes);
-    return {
-      ok: true,
-      output:
-        redact(text) +
-        provenanceFooter({
-          model: opts.model,
-          sessionId: lease.leaseId,
-          failover: 0,
-          truncated,
-          transport: "herdr-pool",
-          worker: lease.worker,
-        }),
-      modelUsed: opts.model,
-      attempts: [{ model: opts.model }],
-      fellBackToInline: false,
-    };
-  } finally {
-    releaseWorker(lease.worker, { clear: true });
-    cleanupResultFile(lease.resultPath);
-  }
-}
-
-/** Exported for tests — try pool once; null means caller should use print. */
+/** Retired: Superlab UDS pool replaced PTY lease. Always null → print. */
 export async function tryHerdrPoolTransport(
-  opts: RunAgyOptions,
+  _opts: RunAgyOptions,
 ): Promise<RunAgyResult | null> {
-  const transport = resolveTransport();
-  if (transport === "print") return null;
-  if (opts.sessionId) return null; // follow_up stays on print/--conversation for now
-  if (opts.models.length === 0) return null;
-  // Fixture / override binaries always use print.
-  if (/\.mjs$|fake-agy/i.test(agyBin())) return null;
-
-  const maxBytes = opts.maxBytes ?? DEFAULT_MAX_BYTES;
-  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const head = opts.models[0]!;
-
-  if (transport === "herdr") {
-    const result = await runViaHerdrPool({
-      prompt: opts.prompt,
-      model: head,
-      maxBytes,
-      timeoutMs,
-      raw: opts.raw,
-    });
-    return result;
-  }
-
-  // auto: soft-fail to print on any pool miss / hard failure without exhausting
-  try {
-    const result = await runViaHerdrPool({
-      prompt: opts.prompt,
-      model: head,
-      maxBytes,
-      timeoutMs,
-      raw: opts.raw,
-    });
-    if (result?.ok) return result;
-    // Pool hard-fail (blocked / empty file) → print fallback
-    return null;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 /** Per-process cooldown: models that just 429'd stay skipped until expiry. */

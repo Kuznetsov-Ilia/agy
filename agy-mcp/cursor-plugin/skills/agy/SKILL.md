@@ -5,11 +5,10 @@ globs: []
 
 # agy — MCP delegation
 
-Thin stdio MCP (`server: "agy"`) wrapping the Antigravity `agy` CLI. Install via
-`agy-mcp` (`pnpm install:cursor` / `node bin/install.mjs`).
+Thin stdio MCP (`server: "agy"`). In Superlab the server is the UDS worker
+pool (`src/agy-pool`), not `agy-mcp` PTY lease / `/tmp/agy-pool`.
 
-Auth is **file-based** (`~/.gemini/antigravity-cli/antigravity-oauth-token`). MCP
-(`run-server` / `agyChildEnv`) and interactive PATH share the same file-auth path.
+Auth is **file-based** (`~/.gemini/antigravity-cli/antigravity-oauth-token`).
 Bootstrap if token missing:
 
 ```bash
@@ -48,13 +47,17 @@ CallMcpTool({ server: "agy", toolName: "analyze_files" | "deep_search" | …, ar
 | `AGY_SKIP_PERMISSIONS` | default on — `--dangerously-skip-permissions` (print mode); set `0` to disable |
 | `SSH_CONNECTION` / `SSH_CLIENT` | force file token storage (set by install / run-server) |
 
-## Transport outage
+## Transport
+
+Superlab UDS pool. Watch Herdr panes `agy1`/`agy2` (live prompt + print stream)
+or `bun run agy-pool:watch 1`. Footer `transport:uds-pool`. Do not use
+`AGY_TRANSPORT=herdr`.
 
 If `CallMcpTool` returns **`Not connected`**:
 
 ```
-node /path/to/agy-mcp/dist/cli.js agy_doctor
-node /path/to/agy-mcp/dist/cli.js analyze_files '{"prompt":"…"}'
+cd /path/to/superlab && bun run agy-pool:ensure
+bun run agy-pool:status
 ```
 
 Prefer a **new Agent chat** after Reload Window.

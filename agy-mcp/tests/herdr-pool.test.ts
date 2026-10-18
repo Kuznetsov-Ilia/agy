@@ -33,11 +33,11 @@ describe("herdr-pool leases", () => {
 });
 
 describe("resolveTransport", () => {
-  it("defaults auto and accepts print|herdr", () => {
-    expect(resolveTransport({})).toBe("auto");
+  it("always print; herdr/auto are retired", () => {
+    expect(resolveTransport({})).toBe("print");
     expect(resolveTransport({ AGY_TRANSPORT: "print" })).toBe("print");
-    expect(resolveTransport({ AGY_TRANSPORT: "herdr" })).toBe("herdr");
-    expect(resolveTransport({ AGY_TRANSPORT: "nope" })).toBe("auto");
+    expect(resolveTransport({ AGY_TRANSPORT: "herdr" })).toBe("print");
+    expect(resolveTransport({ AGY_TRANSPORT: "auto" })).toBe("print");
   });
 });
 

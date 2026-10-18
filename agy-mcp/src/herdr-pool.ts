@@ -1,3 +1,5 @@
+// RETIRED: PTY lease /tmp/agy-pool control plane.
+// Superlab src/agy-pool is SSOT. Kept only so existing unit tests compile.
 // Herdr warm-pool control plane for agy-mcp.
 // Lease state lives under ~/.cache/agy-pool so it survives Cursor/MCP restarts.
 // Herdr panes remain source of truth for idle/working/blocked.
